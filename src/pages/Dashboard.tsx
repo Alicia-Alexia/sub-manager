@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useSubscriptions } from '../hooks/useSubscriptions'
 import { supabase } from '../lib/supabase'
 import { useQueryClient } from '@tanstack/react-query'
@@ -6,10 +6,21 @@ import type { Database } from '../types/supabase'
 import {
   Plus, CreditCard, Calendar, Loader2, Wallet, TrendingUp,
   Pencil, Trash2, LayoutDashboard, LogOut, Check, 
-  Play, Home, DollarSign, Gamepad2, Book, Coffee, Box, HelpCircle, Music, Video
+  Play, Home, DollarSign, Gamepad2, Book, Coffee, Box, HelpCircle, Music, Video,
+  PlusCircle
 } from 'lucide-react'
 import { CreateSubscriptionModal } from '../components/CreateSubscriptionModal'
 import { useExchangeRates } from '../hooks/useExchangeRates'
+import { BudgetCard } from '../components/BudgetCard';
+import { BudgetModal } from '../components/BudgetModal';
+
+interface Budget {
+  id: string
+  user_id: string
+  category: string
+  limit_amount: number
+  created_at?: string
+}
 
 type BaseSubscription = Database['public']['Tables']['subscriptions']['Row']
 
@@ -98,9 +109,59 @@ export function Dashboard() {
   const { data: rates } = useExchangeRates()
 
   const queryClient = useQueryClient()
+  
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false)
+  
+  const [budgets, setBudgets] = useState<Budget[]>([])
   const [editingSubscription, setEditingSubscription] = useState<BaseSubscription | null>(null)
   const [activeFilter, setActiveFilter] = useState('all')
+
+  async function fetchBudgets() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase
+        .from('budgets')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      if (data) setBudgets(data);
+    }
+  }
+
+  useEffect(() => {
+    fetchBudgets();
+  }, []);
+
+  const getCategorySpent = (categoryName: string) => {
+    if (!subscriptions) return 0;
+
+    const targetCategory = categoryName.trim().toLowerCase();
+
+    return subscriptions
+      .filter(sub => {
+        if (!sub.categories?.name) return false;
+
+        const subCategory = sub.categories.name.trim().toLowerCase();
+        const namesMatch = subCategory === targetCategory;
+        const isValidStatus = ['active', 'trial', 'overdue'].includes(sub.status);
+
+        return namesMatch && isValidStatus;
+      })
+      .reduce((acc, sub) => {
+        let price = Number(sub.price)
+
+        if (sub.billing_cycle === 'yearly') price = price / 12
+        if (sub.billing_cycle === 'weekly') price = price * 4
+
+        if (rates) {
+          if (sub.currency === 'USD') price = price * rates.USD
+          if (sub.currency === 'EUR') price = price * rates.EUR
+        }
+
+        return acc + price;
+      }, 0);
+  };
 
   const financialData = useMemo(() => {
     if (!subscriptions) return { totalMonthly: 0, totalAnnual: 0, distribution: [] }
@@ -253,8 +314,10 @@ export function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+          
           <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 text-white shadow-2xl flex flex-col justify-between relative overflow-hidden border border-slate-700/50">
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500 rounded-full blur-[80px] opacity-10"></div>
+            
             <div>
               <div className="flex items-center gap-2 text-slate-400 mb-1">
                 <Wallet className="w-4 h-4" />
@@ -264,7 +327,8 @@ export function Dashboard() {
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(financialData.totalMonthly)}
               </h2>
             </div>
-            <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-700/50 backdrop-blur-sm">
+
+            <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-700/50 backdrop-blur-sm mb-4">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm text-slate-400">Projeção Anual</span>
                 <TrendingUp className="w-4 h-4 text-emerald-400" />
@@ -273,6 +337,25 @@ export function Dashboard() {
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(financialData.totalAnnual)}
               </p>
             </div>
+
+            {rates && (
+              <div className="pt-3 border-t border-white/10 flex items-center justify-between text-xs text-slate-400 font-medium">
+                <div className="flex items-center gap-1.5" title="Cotação do Dólar hoje">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                  <span>USD</span>
+                  <span className="text-white">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rates.USD)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5" title="Cotação do Euro hoje">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                  <span>EUR</span>
+                  <span className="text-white">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rates.EUR)}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="lg:col-span-2 bg-slate-900 rounded-3xl p-6 shadow-xl border border-slate-800 flex flex-col md:flex-row items-center gap-8">
@@ -300,6 +383,39 @@ export function Dashboard() {
               ))}
             </div>
           </div>
+        </div>
+
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-white"> 
+              Teto de Gastos
+            </h2>
+            
+            <button 
+              onClick={() => setIsBudgetModalOpen(true)}
+              className="flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
+            >
+              <PlusCircle size={18} />
+              Definir Limite
+            </button>
+          </div>
+          
+          {budgets.length === 0 ? (
+            <div className="text-gray-500 text-sm bg-slate-900 p-6 rounded-xl border border-slate-800 text-center">
+              Nenhum teto de gastos definido. Clique em "Definir Limite" para começar.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {budgets.map((budget: Budget) => (
+                <BudgetCard 
+                  key={budget.id}
+                  category={budget.category} 
+                  limit={budget.limit_amount} 
+                  spent={getCategorySpent(budget.category)} 
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-3 mb-8 bg-slate-900 p-2 rounded-2xl shadow-lg border border-slate-800 max-w-fit">
@@ -433,6 +549,12 @@ export function Dashboard() {
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           initialData={editingSubscription}
+        />
+
+        <BudgetModal 
+          isOpen={isBudgetModalOpen} 
+          onClose={() => setIsBudgetModalOpen(false)}
+          onSuccess={fetchBudgets} 
         />
       </div>
     </div>
