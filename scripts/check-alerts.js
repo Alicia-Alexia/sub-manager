@@ -1,90 +1,102 @@
-// scripts/check-alerts.js
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js';
+import { Resend } from 'resend';
+import dotenv from 'dotenv';
 
-// 1. Configuração
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL
-const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY
-const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL
+dotenv.config();
 
-if (!SUPABASE_URL || !SUPABASE_KEY || !DISCORD_WEBHOOK_URL) {
-  console.error('❌ Faltam variáveis de ambiente (Secrets).')
-  process.exit(1)
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY; 
+const resendApiKey = process.env.RESEND_API_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey || !resendApiKey) {
+  console.error('❌ Faltam variáveis de ambiente (SUPABASE_URL, SERVICE_ROLE_KEY ou RESEND_API_KEY)');
+  process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const resend = new Resend(resendApiKey);
 
-async function checkSubscriptions() {
-  console.log('🤖 Iniciando verificação para o Discord...')
-
-  // 2. Define datas (Hoje e Amanhã)
-  const today = new Date()
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  
-  const tomorrowStr = tomorrow.toISOString().split('T')[0]
-  const todayStr = today.toISOString().split('T')[0]
-
-  // 3. Busca no Banco
-  const { data: subs, error } = await supabase
+async function checkAndNotify() {
+  console.log('🔄 Iniciando verificação diária...');
+  const today = new Date();
+  const { data: subscriptions, error } = await supabase
     .from('subscriptions')
     .select('*')
-    .or(`next_billing_date.eq.${tomorrowStr},next_billing_date.eq.${todayStr}`)
+    .in('status', ['active', 'trial']);
 
   if (error) {
-    console.error('Erro Supabase:', error)
-    process.exit(1)
+    console.error('Erro ao buscar dados:', error);
+    return;
   }
 
-  if (!subs || subs.length === 0) {
-    console.log('✅ Nenhuma conta vencendo.')
-    return
-  }
-
-  // 4. Envia para o Discord
-  console.log(`🚨 Encontradas ${subs.length} contas vencendo.`)
-  
-  for (const sub of subs) {
-    await sendDiscordWebhook(sub, todayStr)
-  }
-}
-
-async function sendDiscordWebhook(sub, todayStr) {
-  const isToday = sub.next_billing_date === todayStr
-  const color = isToday ? 15548997 : 16776960 
-  
-  const payload = {
-    username: "Financeiro SaaS",
-    avatar_url: "https://cdn-icons-png.flaticon.com/512/2953/2953363.png",
-    embeds: [
-      {
-        title: isToday ? "🚨 VENCE HOJE!" : "⚠️ Vence Amanhã",
-        description: `A assinatura **${sub.name}** precisa da sua atenção.`,
-        color: color,
-        fields: [
-          { name: "Valor", value: `R$ ${sub.price}`, inline: true },
-          { name: "Ciclo", value: sub.billing_cycle === 'monthly' ? 'Mensal' : 'Anual', inline: true },
-          { name: "Data", value: new Date(sub.next_billing_date).toLocaleDateString('pt-BR'), inline: false }
-        ],
-        footer: { text: "Acesse o Dashboard para pagar" }
-      }
-    ]
-  }
-
-  try {
-    const response = await fetch(DISCORD_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    })
+  const alerts = subscriptions.filter(sub => {
+    if (!sub.next_billing_date) return false;
     
-    if (!response.ok) {
-        console.error(`Erro Discord: ${response.status} ${response.statusText}`)
-    } else {
-        console.log(`📨 Alerta enviado para: ${sub.name}`)
+    const subDate = new Date(sub.next_billing_date + 'T00:00:00');
+    const todayDate = new Date();
+    todayDate.setHours(0,0,0,0);
+    
+    const diffTime = subDate - todayDate;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return diffDays === 0 || diffDays === 1;
+  });
+
+  if (alerts.length === 0) {
+    console.log('✅ Nenhuma assinatura vencendo hoje ou amanhã.');
+    return;
+  }
+
+  console.log(`⚠️ Encontradas ${alerts.length} contas vencendo.`);
+
+  const userAlerts = {};
+  
+  alerts.forEach(sub => {
+    if (!userAlerts[sub.user_id]) {
+      userAlerts[sub.user_id] = [];
     }
-  } catch (err) {
-    console.error('Erro de conexão:', err)
+    userAlerts[sub.user_id].push(sub);
+  });
+
+  for (const userId in userAlerts) {
+    const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(userId);
+
+    if (userError || !user || !user.email) {
+      console.error(`❌ Não foi possível achar o e-mail do usuário ${userId}`);
+      continue;
+    }
+
+    const userSubs = userAlerts[userId];
+    console.log(`📧 Enviando alerta para: ${user.email} (${userSubs.length} contas)`);
+
+    const emailHtml = `
+      <div style="font-family: sans-serif; color: #333;">
+        <h1>⚠️ Atenção: Contas Vencendo!</h1>
+        <p>Olá! O Sub-Manager detectou os seguintes vencimentos para você:</p>
+        <ul>
+          ${userSubs.map(sub => `
+            <li style="margin-bottom: 10px;">
+              <strong>${sub.name}</strong> - R$ ${sub.price}<br/>
+              Vencimento: ${new Date(sub.next_billing_date).toLocaleDateString('pt-BR')}
+            </li>
+          `).join('')}
+        </ul>
+        <p>Acesse seu painel para dar baixa: <a href="https://seu-projeto.vercel.app">Ir para Dashboard</a></p>
+      </div>
+    `;
+
+    try {
+      await resend.emails.send({
+        from: 'Sub-Manager <onboarding@resend.dev>', 
+        to: user.email, 
+        subject: `🔔 Alerta: ${userSubs.length} contas vencendo!`,
+        html: emailHtml
+      });
+      console.log(`✅ Email enviado com sucesso para ${user.email}`);
+    } catch (emailError) {
+      console.error(`❌ Falha ao enviar email para ${user.email}:`, emailError);
+    }
   }
 }
 
-checkSubscriptions()
+checkAndNotify();
