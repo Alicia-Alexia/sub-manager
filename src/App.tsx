@@ -4,6 +4,7 @@ import { Auth } from './pages/Auth'
 import { Dashboard } from './pages/Dashboard'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
+
 const queryClient = new QueryClient()
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {

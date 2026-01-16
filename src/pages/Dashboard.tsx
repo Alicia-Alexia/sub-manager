@@ -109,11 +109,12 @@ export function Dashboard() {
   const { data: rates } = useExchangeRates()
 
   const queryClient = useQueryClient()
-  
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false)
   
   const [budgets, setBudgets] = useState<Budget[]>([])
+  const [editingBudget, setEditingBudget] = useState<Budget | null>(null) // Novo estado para edição de budget
+  
   const [editingSubscription, setEditingSubscription] = useState<BaseSubscription | null>(null)
   const [activeFilter, setActiveFilter] = useState('all')
 
@@ -132,6 +133,29 @@ export function Dashboard() {
   useEffect(() => {
     fetchBudgets();
   }, []);
+
+  const handleEditBudget = (budget: Budget) => {
+    setEditingBudget(budget);
+    setIsBudgetModalOpen(true);
+  };
+
+  const handleNewBudget = () => {
+    setEditingBudget(null); 
+    setIsBudgetModalOpen(true);
+  };
+
+  const handleDeleteBudget = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja remover este limite de gastos?')) return;
+    
+    try {
+      const { error } = await supabase.from('budgets').delete().eq('id', id);
+      if (error) throw error;
+      fetchBudgets(); 
+    } catch (error) {
+      console.error('Erro ao deletar:', error);
+      alert('Erro ao excluir orçamento.');
+    }
+  };
 
   const getCategorySpent = (categoryName: string) => {
     if (!subscriptions) return 0;
@@ -314,7 +338,7 @@ export function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-          
+     
           <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 text-white shadow-2xl flex flex-col justify-between relative overflow-hidden border border-slate-700/50">
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500 rounded-full blur-[80px] opacity-10"></div>
             
@@ -392,7 +416,7 @@ export function Dashboard() {
             </h2>
             
             <button 
-              onClick={() => setIsBudgetModalOpen(true)}
+              onClick={handleNewBudget}
               className="flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
             >
               <PlusCircle size={18} />
@@ -412,6 +436,8 @@ export function Dashboard() {
                   category={budget.category} 
                   limit={budget.limit_amount} 
                   spent={getCategorySpent(budget.category)} 
+                  onEdit={() => handleEditBudget(budget)}
+                  onDelete={() => handleDeleteBudget(budget.id)}
                 />
               ))}
             </div>
@@ -552,9 +578,11 @@ export function Dashboard() {
         />
 
         <BudgetModal 
+          key={editingBudget ? editingBudget.id : 'new-budget'} 
           isOpen={isBudgetModalOpen} 
           onClose={() => setIsBudgetModalOpen(false)}
-          onSuccess={fetchBudgets} 
+          onSuccess={fetchBudgets}
+          initialData={editingBudget}
         />
       </div>
     </div>
