@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  notify-discord:
+  notify-email:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,4 +26,4 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
