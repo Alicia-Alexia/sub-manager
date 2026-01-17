@@ -43,7 +43,7 @@ Diferente de planilhas comuns, este projeto é um **Web App Full-Stack** que ofe
 
 ### 🤖 DevOps & Automação
 - **Serverless Cron Job:** Script Node.js executado todo dia às 09:00 AM (UTC-3).
-- **Notificações:** Alertas enviados para canal privado no Discord via Webhooks.
+- **Notificações:** Alertas enviados para email.
 
 ---
 ## 🛠️ Tecnologias Utilizadas
