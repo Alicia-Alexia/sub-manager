@@ -1,62 +1,71 @@
-# 💰 Subscription Manager (SaaS Dashboard)
+# 💰 Sub-Manager (SaaS Dashboard)
 
-![Project Banner](https://img.shields.io/badge/Status-Production-green) ![License](https://img.shields.io/badge/License-MIT-blue)  ![Supabase](https://img.shields.io/badge/Supabase-Backend-green)
+![Status](https://img.shields.io/badge/Status-Production-emerald?style=for-the-badge)
+![Tech](https://img.shields.io/badge/React-blue?style=for-the-badge)
+![Supabase](https://img.shields.io/badge/Supabase-Backend-green?style=for-the-badge)
+![TypeScript](https://img.shields.io/badge/TypeScript-blue?style=for-the-badge)
+![Resend](https://img.shields.io/badge/Resend-Email_API-black?style=for-the-badge)
 
-> Uma aplicação Full-Stack para gerenciamento inteligente de assinaturas recorrentes, com dashboard financeiro e sistema automatizado de alertas via Discord.
+> **Controle Financeiro Inteligente:** Gerencie assinaturas recorrentes , defina tetos de gastos por categoria e receba alertas automáticos de vencimento.
 
 ![Screenshot do Dashboard](src/assets/img/image.png)
-
-
 ---
 
 ## 🚀 Sobre o Projeto
 
-O **Subscription Manager** resolve o problema de esquecer datas de vencimento de assinaturas (Netflix, Spotify, Adobe, etc.). O sistema permite cadastrar serviços, visualizar o custo mensal total e acompanhar status de pagamento.
+O **Sub-Manager** resolve o problema da "assinatura fantasma" e do descontrole financeiro em serviços recorrentes (Netflix, Adobe, AWS, Spotify).
 
-O diferencial técnico é a integração **Serverless** via **GitHub Actions**, que executa um Cron Job diário para verificar o banco de dados e notificar o usuário no Discord sobre contas vencendo no dia ou no dia seguinte.
+Diferente de planilhas comuns, este projeto é um **Web App Full-Stack** que oferece:
+1.  **Monitoramento Ativo:** Cálculo automático de gastos mensais e anuais.
+2.  **Conversão de Moedas:** Suporte a assinaturas em BRL, USD e EUR com cotação em tempo real.
+3.  **Sistema de Orçamentos (Budgets):** Defina limites de gastos (ex: "Máximo R$ 100 em Streaming") e acompanhe visualmente o progresso.
+4.  **Automação Serverless:** Um Cron Job roda diariamente via **GitHub Actions** para verificar o banco de dados e dispara e-mails transacionais individualizados apenas para os usuários que têm contas vencendo, garantindo privacidade e escalabilidade.
 
-## ✨ Funcionalidades Principais
+## ✨ Funcionalidades
 
-- 📊 **Dashboard Financeiro:** Visualização clara do total gasto mensalmente.
-- 🔄 **Gestão de Assinaturas (CRUD):** Adicionar, editar e remover serviços.
-- 🎨 **UI/UX Moderno:** Interface responsiva construída com Tailwind CSS e Dark Mode.
-- 🔐 **Autenticação Segura:** Login e cadastro de usuários via Supabase Auth.
-- 🤖 **Automação de Alertas (DevOps):**
-  - Script Node.js roda automaticamente todo dia às 09:00 (GitHub Actions).
-  - Verifica vencimentos no Banco de Dados.
-  - Envia notificação Push via Webhook para canal privado no Discord.
+### 📊 Dashboard & Analytics
+- **Visão Geral:** Cards com Total Mensal, Projeção Anual e Cotação do Dólar/Euro.
+- **Gráfico de Distribuição:** Visualização Donut Chart dos gastos por categoria.
+- **Filtros Inteligentes:** Visualize apenas contas "Atrasadas", "Vencendo Hoje" ou por Categoria.
 
+### 💰 Gestão de Orçamento
+- **Teto de Gastos:** Crie limites financeiros para categorias específicas.
+- **Barra de Progresso Visual:**
+  - 🟢 **Verde:** Gasto sob controle.
+  - 🟡 **Amarelo:** Alerta (80% do limite).
+  - 🔴 **Vermelho:** Limite estourado.
+- **CRUD Completo:** Adicione, Edite ou Remova orçamentos dinamicamente.
+
+### 🔄 Assinaturas
+- Cadastro detalhado (Ciclo Mensal/Anual, Moeda, Data).
+- Suporte a Período de Testes (Trial).
+- Renovação rápida com um clique ("Marcar como Pago").
+
+### 🤖 DevOps & Automação
+- **Serverless Cron Job:** Script Node.js executado todo dia às 09:00 AM (UTC-3).
+- **Notificações:** Alertas enviados para canal privado no Discord via Webhooks.
+
+---
 ## 🛠️ Tecnologias Utilizadas
 
 **Frontend:**
-- [React.js](https://reactjs.org/) (Vite)
-- [TypeScript](https://www.typescriptlang.org/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Lucide React](https://lucide.dev/) (Ícones)
+- React.js + Vite
+- TypeScript
+- Tailwind CSS (Estilização)
+- TanStack Query (State Management)
+- Lucide React (Ícones)
 
 **Backend & Data:**
-- [Supabase](https://supabase.com/) (PostgreSQL Database & Auth)
-- [Node.js](https://nodejs.org/) (Scripts de Automação)
+- **Supabase:** PostgreSQL Database, Auth & Row Level Security (RLS).
+- **Resend:** API de E-mails Transacionais.
+- **Node.js:** Scripts de automação.
 
-**DevOps & Tools:**
-- [GitHub Actions](https://github.com/features/actions) (CI/CD & Cron Jobs)
-- [Discord Webhooks](https://discord.com/developers/docs/resources/webhook)
-- [Vercel](https://vercel.com/) (Deploy de Produção)
+**Infraestrutura:**
+- **Vercel:** Deploy do Frontend.
+- **GitHub Actions:** CI/CD e Agendamento de Scripts (Cron).
 
 ---
 
-## ⚙️ Arquitetura da Automação
-
-O sistema de alertas funciona de forma totalmente autônoma, sem necessidade de servidor ligado 24h:
-
-```mermaid
-graph LR
-A[GitHub Actions (Cron)] -- 09:00 AM --> B(Script Node.js)
-B -- Query Vencimentos --> C[(Supabase DB)]
-C -- Retorna Dados --> B
-B -- Payload JSON --> D{Discord Webhook}
-D -- Notificação Push --> E[📱 Celular do Usuário]
-```
 
 ## 🚀 Como Rodar Localmente
 ### Pré-requisitos
@@ -71,19 +80,22 @@ cd sub-manager
 ```
 
 ### Instale as dependências:
-```
+```bash
 $ npm install
 ```
 
 ### Configure as Variáveis de Ambiente: Crie um arquivo .env na raiz e preencha com suas chaves do Supabase:
 ```
- VITE_SUPABASE_URL=sua_url_do_supabase
- VITE_SUPABASE_ANON_KEY=sua_chave_anonima
+# Frontend (Vercel/Local)
+VITE_SUPABASE_URL=sua_url_supabase
+VITE_SUPABASE_ANON_KEY=sua_chave_publica
 
- DISCORD_WEBHOOK_URL=seu_webhook_discord (opcional para rodar script local)
+# Backend Scripts (GitHub Secrets / Local)
+SUPABASE_SERVICE_ROLE_KEY=sua_chave_secreta_admin
+RESEND_API_KEY=re_123456_sua_chave_resend
 ```
 ### Rode o projeto:
-```
+```bash
 $ npm run dev
 ```
 

@@ -81,7 +81,7 @@ async function checkAndNotify() {
             </li>
           `).join('')}
         </ul>
-        <p>Acesse seu painel para dar baixa: <a href="https://seu-projeto.vercel.app">Ir para Dashboard</a></p>
+        <p>Acesse seu painel para dar baixa: <a href="https://sub-managers.vercel.app/">Ir para Dashboard</a></p>
       </div>
     `;
 
