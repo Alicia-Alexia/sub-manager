@@ -1,4 +1,4 @@
-# 💰 Sub-Manager (SaaS Dashboard)
+# 💰 Sub-Manager
 
 ![Status](https://img.shields.io/badge/Status-Production-emerald?style=for-the-badge)
 ![Tech](https://img.shields.io/badge/React-blue?style=for-the-badge)
