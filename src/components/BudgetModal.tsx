@@ -11,6 +11,7 @@ interface BudgetModalProps {
 
 export function BudgetModal({ isOpen, onClose, onSuccess, initialData }: BudgetModalProps) {
   const [loading, setLoading] = useState(false);
+
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', {
       minimumFractionDigits: 2,
@@ -24,17 +25,16 @@ export function BudgetModal({ isOpen, onClose, onSuccess, initialData }: BudgetM
   );
 
   const categories = ['Streaming', 'Software', 'Educação', 'Lazer', 'Finanças', 'Outros'];
-
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const onlyDigits = e.target.value.replace(/\D/g, '');
+    const onlyDigits = e.target.value.replace(/\D/g, ''); 
 
     if (onlyDigits === '') {
       setAmount('');
       return;
     }
 
-    const numberValue = Number(onlyDigits) / 100;
-    setAmount(formatCurrency(numberValue));
+    const numberValue = Number(onlyDigits) / 100; 
+    setAmount(formatCurrency(numberValue)); 
   };
 
   async function handleSave(e: React.FormEvent) {
@@ -49,7 +49,7 @@ export function BudgetModal({ isOpen, onClose, onSuccess, initialData }: BudgetM
     );
 
     if (isNaN(rawAmount) || rawAmount <= 0) {
-      alert("Por favor, insira um valor válido.");
+      alert("Valor inválido.");
       setLoading(false);
       return;
     }
@@ -59,21 +59,14 @@ export function BudgetModal({ isOpen, onClose, onSuccess, initialData }: BudgetM
     if (initialData?.id) {
       const { error: updateError } = await supabase
         .from('budgets')
-        .update({ 
-          category, 
-          limit_amount: rawAmount 
-        })
+        .update({ category, limit_amount: rawAmount })
         .eq('id', initialData.id);
       error = updateError;
     } else {
       const { error: insertError } = await supabase
         .from('budgets')
         .upsert(
-          { 
-            user_id: user.id, 
-            category, 
-            limit_amount: rawAmount 
-          },
+          { user_id: user.id, category, limit_amount: rawAmount },
           { onConflict: 'user_id, category' }
         );
       error = insertError;
@@ -98,13 +91,12 @@ export function BudgetModal({ isOpen, onClose, onSuccess, initialData }: BudgetM
           <h2 className="text-xl font-bold text-white">
             {initialData ? 'Editar Teto' : 'Novo Teto de Gastos'}
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-white">
             <X size={24} />
           </button>
         </div>
 
         <form onSubmit={handleSave} className="space-y-4">
-
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-1">Categoria</label>
             <select 
@@ -124,7 +116,7 @@ export function BudgetModal({ isOpen, onClose, onSuccess, initialData }: BudgetM
               <span className="absolute left-3 top-3.5 text-slate-500 font-bold text-sm">R$</span>
               <input 
                 type="text" 
-                inputMode="numeric" 
+                inputMode="numeric"
                 required
                 placeholder="0,00"
                 value={amount}
