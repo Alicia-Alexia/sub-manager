@@ -24,7 +24,7 @@ export function BudgetModal({ isOpen, onClose, onSuccess, initialData }: BudgetM
     initialData?.limit_amount ? formatCurrency(initialData.limit_amount) : ''
   );
 
-  const categories = ['Streaming', 'Software', 'Educação', 'Lazer', 'Finanças', 'Outros'];
+  const categories = ['Streaming', 'Software', 'Educação', 'Lazer', 'Finanças','Casa', 'Outros'];
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const onlyDigits = e.target.value.replace(/\D/g, ''); 
 
