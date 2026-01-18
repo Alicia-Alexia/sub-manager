@@ -1,33 +1,53 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Calendar, DollarSign } from 'lucide-react';
+import { X, Loader2, Calendar, DollarSign, Euro } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface CreateSubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   initialData?: any;
 }
 
 export function CreateSubscriptionModal({ isOpen, onClose, initialData }: CreateSubscriptionModalProps) {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
- 
+
   const [name, setName] = useState('');
-  const [price, setPrice] = useState('');
+  const [price, setPrice] = useState(''); 
   const [currency, setCurrency] = useState('BRL');
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [nextBillingDate, setNextBillingDate] = useState('');
   const [category, setCategory] = useState('');
   const [isTrial, setIsTrial] = useState(false);
 
-  const categories = ['Streaming', 'Software', 'Educação', 'Lazer', 'Finanças', 'Casa' ,'Outros'];
+  const categories = ['Streaming', 'Software', 'Educação', 'Lazer', 'Finanças','Casa' ,'Outros'];
+
+  const formatNumberToCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const onlyDigits = e.target.value.replace(/\D/g, '');
+
+    if (onlyDigits === '') {
+      setPrice('');
+      return;
+    }
+
+    const numberValue = Number(onlyDigits) / 100;
+
+    setPrice(formatNumberToCurrency(numberValue));
+  };
 
   useEffect(() => {
     if (initialData) {
       setName(initialData.name);
-      setPrice(initialData.price.toString());
+      setPrice(formatNumberToCurrency(initialData.price)); 
       setCurrency(initialData.currency || 'BRL');
       setBillingCycle(initialData.billing_cycle);
       setNextBillingDate(initialData.next_billing_date);
@@ -44,6 +64,14 @@ export function CreateSubscriptionModal({ isOpen, onClose, initialData }: Create
     }
   }, [initialData, isOpen]);
 
+  const getCurrencyIcon = () => {
+    switch (currency) {
+      case 'USD': return <DollarSign className="absolute left-3 top-3.5 w-4 h-4 text-green-500" />;
+      case 'EUR': return <Euro className="absolute left-3 top-3.5 w-4 h-4 text-blue-500" />;
+      default: return <span className="absolute left-3 top-3.5 text-xs font-bold text-slate-500 mt-0.5">R$</span>;
+    }
+  };
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -51,6 +79,12 @@ export function CreateSubscriptionModal({ isOpen, onClose, initialData }: Create
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não logado');
+
+      const rawPrice = parseFloat(
+        price.replace(/\./g, '').replace(',', '.')
+      );
+
+      if (isNaN(rawPrice)) throw new Error("Preço inválido");
 
       let categoryId = null;
       if (category) {
@@ -83,7 +117,7 @@ export function CreateSubscriptionModal({ isOpen, onClose, initialData }: Create
       const subscriptionData = {
         user_id: user.id,
         name,
-        price: parseFloat(price.replace(',', '.')),
+        price: rawPrice, 
         currency,
         billing_cycle: billingCycle,
         next_billing_date: nextBillingDate,
@@ -109,6 +143,7 @@ export function CreateSubscriptionModal({ isOpen, onClose, initialData }: Create
 
       await queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
       onClose();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       alert('Erro ao salvar: ' + err.message);
     } finally {
@@ -121,7 +156,7 @@ export function CreateSubscriptionModal({ isOpen, onClose, initialData }: Create
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
-        
+
         <div className="flex justify-between items-center p-6 border-b border-slate-800">
           <h2 className="text-xl font-bold text-white">
             {initialData ? 'Editar Assinatura' : 'Nova Assinatura'}
@@ -139,10 +174,10 @@ export function CreateSubscriptionModal({ isOpen, onClose, initialData }: Create
               <input
                 type="text"
                 required
-                placeholder="Ex: Netflix, Spotify..."
+                placeholder="Ex: Netflix..."
                 value={name}
                 onChange={e => setName(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-3 focus:ring-2 focus:ring-blue-600 outline-none placeholder:text-slate-600 transition-all"
+                className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-3 focus:ring-2 focus:ring-blue-600 outline-none"
               />
             </div>
 
@@ -152,9 +187,9 @@ export function CreateSubscriptionModal({ isOpen, onClose, initialData }: Create
                 id="trial"
                 checked={isTrial}
                 onChange={e => setIsTrial(e.target.checked)}
-                className="w-5 h-5 rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-blue-600 focus:ring-offset-slate-900"
+                className="w-5 h-5 rounded border-slate-700 bg-slate-800 text-blue-600"
               />
-              <label htmlFor="trial" className="text-sm text-slate-300 cursor-pointer select-none">
+              <label htmlFor="trial" className="text-sm text-slate-300 cursor-pointer">
                 É um período de testes (Free Trial)?
               </label>
             </div>
@@ -164,7 +199,7 @@ export function CreateSubscriptionModal({ isOpen, onClose, initialData }: Create
               <select
                 value={category}
                 onChange={e => setCategory(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-3 focus:ring-2 focus:ring-blue-600 outline-none appearance-none"
+                className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-3 focus:ring-2 focus:ring-blue-600 outline-none"
               >
                 <option value="">Sem Categoria</option>
                 {categories.map(cat => (
@@ -172,19 +207,18 @@ export function CreateSubscriptionModal({ isOpen, onClose, initialData }: Create
                 ))}
               </select>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1.5">Preço</label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-3.5 w-4 h-4 text-slate-500" />
+                  {getCurrencyIcon()}
                   <input
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="numeric"
                     required
-                    placeholder="0.00"
+                    placeholder="0,00"
                     value={price}
-                    onChange={e => setPrice(e.target.value)}
+                    onChange={handlePriceChange}
                     className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl pl-9 p-3 focus:ring-2 focus:ring-blue-600 outline-none placeholder:text-slate-600"
                   />
                 </div>
